@@ -1,0 +1,69 @@
+{
+  "entities": {
+    "ClassData": {
+      "title": "Class Data",
+      "description": "Details of a class created by a teacher",
+      "type": "object",
+      "properties": {
+        "classCode": { "type": "string" },
+        "subject": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["classCode", "subject", "teacherName", "createdAt"]
+    },
+    "StudentDetails": {
+      "title": "Student Details",
+      "description": "Details about a student session",
+      "type": "object",
+      "properties": {
+        "studentName": { "type": "string" },
+        "classCode": { "type": "string" },
+        "teacherName": { "type": "string" },
+        "subject": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["studentName", "classCode", "date"]
+    },
+    "SubmissionData": {
+      "title": "Submission Data",
+      "description": "Portfolios and answers of a student",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studentDetails": { "$ref": "StudentDetails" },
+        "activity1Evidence": { "type": "string" },
+        "activity1Prediction": { "type": "string" },
+        "activity2BrightSide": { "type": "string" },
+        "activity2Hemisphere": { "type": "string" },
+        "sandboxElementsJson": { "type": "string" },
+        "activity3CompareExplain": { "type": "string" },
+        "activity3SolarEffect": { "type": "string" },
+        "activity3Screenshot": { "type": "string" },
+        "activity4Reflection": { "type": "string" },
+        "missionTargetName": { "type": "string" },
+        "missionTidalSummary": { "type": "string" },
+        "missionPhasesSummary": { "type": "string" },
+        "missionEclipseSummary": { "type": "string" },
+        "missionHabitabilitySummary": { "type": "string" },
+        "missionFinalRecommendation": { "type": "string" },
+        "missionFinalJustification": { "type": "string" },
+        "missionReportSubmitted": { "type": "boolean" },
+        "rubricScore": { "type": "object" },
+        "teacherFeedback": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "studentDetails", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "submissions/{submissionId}": {
+      "schema": "SubmissionData",
+      "description": "Student WebQuest submission data"
+    },
+    "classes/{classCode}": {
+      "schema": "ClassData",
+      "description": "Created classrooms list"
+    }
+  }
+}

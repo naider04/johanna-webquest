@@ -1,0 +1,6 @@
+{
+  "name": "Moon Explorer WebQuest",
+  "description": "An interactive WebQuest exploration of the Moon, designed for Elementary and Middle School Science.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
