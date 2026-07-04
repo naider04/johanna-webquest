@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "deploy:firestore-rules": "npx --yes firebase-tools deploy --only firestore:rules --project helical-theater-8tgzl"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
