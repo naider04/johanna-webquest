@@ -19,15 +19,20 @@ export default function Navigation({ activePage, onPageChange }: NavigationProps
 
   const currentIndex = pages.findIndex((p) => p.id === activePage);
 
+  const goToPage = (page: WebQuestPage) => {
+    onPageChange(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handlePrev = () => {
     if (currentIndex > 0) {
-      onPageChange(pages[currentIndex - 1].id);
+      goToPage(pages[currentIndex - 1].id);
     }
   };
 
   const handleNext = () => {
     if (currentIndex < pages.length - 1) {
-      onPageChange(pages[currentIndex + 1].id);
+      goToPage(pages[currentIndex + 1].id);
     }
   };
 
@@ -44,7 +49,7 @@ export default function Navigation({ activePage, onPageChange }: NavigationProps
                 <button
                   key={page.id}
                   id={`nav-btn-${page.id}`}
-                  onClick={() => onPageChange(page.id)}
+                  onClick={() => goToPage(page.id)}
                   className={`flex items-center gap-1.5 px-3 py-2.5 text-xs md:text-sm font-semibold transition-all rounded-md whitespace-nowrap focus:outline-none ${
                     isActive
                       ? 'bg-[#475569] text-white shadow-sm'

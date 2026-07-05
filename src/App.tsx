@@ -13,8 +13,35 @@ import TeacherDashboard from './components/TeacherDashboard';
 import { StudentDetails, WebQuestPage, RubricScore, SubmissionData } from './types';
 import { EclipseElement } from './components/EclipseSandbox';
 import { db, doc, setDoc, getDoc, getDocs, collection, onSnapshot, deleteDoc } from './lib/firebase';
-import { buildProgressSnapshot, calculateAutomaticRubric, emptyRubricScore, normalizeRubricScore } from './lib/grading';
+import { calculateAutomaticRubric, emptyRubricScore, normalizeRubricScore } from './lib/grading';
 import { AlertCircle, MessageSquare, Award, Sparkles, X } from 'lucide-react';
+
+const LOCAL_DRAFT_KEY = 'webquest_submission_draft_v1';
+
+const loadLocalDraft = () => {
+  try {
+    const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveLocalDraft = (draft: unknown) => {
+  try {
+    localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(draft));
+  } catch {
+    // Ignore storage quota / serialization issues and keep the cloud path as the primary store.
+  }
+};
+
+const clearLocalDraft = () => {
+  try {
+    localStorage.removeItem(LOCAL_DRAFT_KEY);
+  } catch {
+    // Ignore storage cleanup failures.
+  }
+};
 
 export default function App() {
   // Navigation State
@@ -71,6 +98,7 @@ export default function App() {
     const savedId = localStorage.getItem('webquest_submission_id');
     const urlParams = new URLSearchParams(window.location.search);
     const classCodeParam = urlParams.get('classCode');
+    const localDraft = loadLocalDraft();
 
     if (savedId) {
       setSubmissionId(savedId);
@@ -105,6 +133,7 @@ export default function App() {
           setMissionReportSubmitted(data.missionReportSubmitted || false);
           setRubricScore(normalizeRubricScore(data.rubricScore));
           setTeacherFeedback(data.teacherFeedback || '');
+          clearLocalDraft();
           if (data.sandboxElementsJson) {
             try {
               setSandboxElements(JSON.parse(data.sandboxElementsJson));
@@ -117,10 +146,66 @@ export default function App() {
           if (classCodeParam) {
             setStudentDetails(prev => ({ ...prev, classCode: classCodeParam.toUpperCase() }));
           }
+          if (localDraft) {
+            setStudentDetails(localDraft.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' });
+            setActivity1Evidence(localDraft.activity1Evidence || null);
+            setActivity1Prediction(localDraft.activity1Prediction || '');
+            setActivity2BrightSide(localDraft.activity2BrightSide || '');
+            setActivity2Hemisphere(localDraft.activity2Hemisphere || '');
+            setActivity3CompareExplain(localDraft.activity3CompareExplain || '');
+            setActivity3SolarEffect(localDraft.activity3SolarEffect || '');
+            setActivity3Screenshot(localDraft.activity3Screenshot || null);
+            setActivity4Reflection(localDraft.activity4Reflection || '');
+            setMissionTargetName(localDraft.missionTargetName || 'Kepler-Prime');
+            setMissionTidalSummary(localDraft.missionTidalSummary || '');
+            setMissionPhasesSummary(localDraft.missionPhasesSummary || '');
+            setMissionEclipseSummary(localDraft.missionEclipseSummary || '');
+            setMissionHabitabilitySummary(localDraft.missionHabitabilitySummary || '');
+            setMissionFinalRecommendation(localDraft.missionFinalRecommendation || '');
+            setMissionFinalJustification(localDraft.missionFinalJustification || '');
+            setMissionReportSubmitted(Boolean(localDraft.missionReportSubmitted));
+            setRubricScore(normalizeRubricScore(localDraft.rubricScore));
+            setTeacherFeedback(localDraft.teacherFeedback || '');
+            if (localDraft.sandboxElementsJson) {
+              try {
+                setSandboxElements(JSON.parse(localDraft.sandboxElementsJson));
+              } catch (e) {
+                console.error('Error parsing local draft sandbox items', e);
+              }
+            }
+          }
         }
         isLoadedFromCloud.current = true;
       }).catch((err) => {
         console.error('Error fetching student document', err);
+        if (localDraft) {
+          setStudentDetails(localDraft.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' });
+          setActivity1Evidence(localDraft.activity1Evidence || null);
+          setActivity1Prediction(localDraft.activity1Prediction || '');
+          setActivity2BrightSide(localDraft.activity2BrightSide || '');
+          setActivity2Hemisphere(localDraft.activity2Hemisphere || '');
+          setActivity3CompareExplain(localDraft.activity3CompareExplain || '');
+          setActivity3SolarEffect(localDraft.activity3SolarEffect || '');
+          setActivity3Screenshot(localDraft.activity3Screenshot || null);
+          setActivity4Reflection(localDraft.activity4Reflection || '');
+          setMissionTargetName(localDraft.missionTargetName || 'Kepler-Prime');
+          setMissionTidalSummary(localDraft.missionTidalSummary || '');
+          setMissionPhasesSummary(localDraft.missionPhasesSummary || '');
+          setMissionEclipseSummary(localDraft.missionEclipseSummary || '');
+          setMissionHabitabilitySummary(localDraft.missionHabitabilitySummary || '');
+          setMissionFinalRecommendation(localDraft.missionFinalRecommendation || '');
+          setMissionFinalJustification(localDraft.missionFinalJustification || '');
+          setMissionReportSubmitted(Boolean(localDraft.missionReportSubmitted));
+          setRubricScore(normalizeRubricScore(localDraft.rubricScore));
+          setTeacherFeedback(localDraft.teacherFeedback || '');
+          if (localDraft.sandboxElementsJson) {
+            try {
+              setSandboxElements(JSON.parse(localDraft.sandboxElementsJson));
+            } catch (e) {
+              console.error('Error parsing local draft sandbox items', e);
+            }
+          }
+        }
         isLoadedFromCloud.current = true;
       });
     } else {
@@ -174,6 +259,57 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Keep a local backup so a refresh does not wipe the current session if cloud sync is interrupted.
+  useEffect(() => {
+    if (!submissionId || !isLoadedFromCloud.current) return;
+
+    saveLocalDraft({
+      submissionId,
+      studentDetails,
+      activity1Evidence,
+      activity1Prediction,
+      activity2BrightSide,
+      activity2Hemisphere,
+      sandboxElementsJson: JSON.stringify(sandboxElements),
+      activity3CompareExplain,
+      activity3SolarEffect,
+      activity3Screenshot,
+      activity4Reflection,
+      missionTargetName,
+      missionTidalSummary,
+      missionPhasesSummary,
+      missionEclipseSummary,
+      missionHabitabilitySummary,
+      missionFinalRecommendation,
+      missionFinalJustification,
+      missionReportSubmitted,
+      rubricScore,
+      teacherFeedback,
+    });
+  }, [
+    submissionId,
+    studentDetails,
+    activity1Evidence,
+    activity1Prediction,
+    activity2BrightSide,
+    activity2Hemisphere,
+    sandboxElements,
+    activity3CompareExplain,
+    activity3SolarEffect,
+    activity3Screenshot,
+    activity4Reflection,
+    missionTargetName,
+    missionTidalSummary,
+    missionPhasesSummary,
+    missionEclipseSummary,
+    missionHabitabilitySummary,
+    missionFinalRecommendation,
+    missionFinalJustification,
+    missionReportSubmitted,
+    rubricScore,
+    teacherFeedback,
+  ]);
+
   // Debounced Autosave Effect
   useEffect(() => {
     if (!submissionId || !isLoadedFromCloud.current) return;
@@ -222,24 +358,6 @@ export default function App() {
               missionReportSubmitted,
             }),
           },
-          progressSnapshot: buildProgressSnapshot({
-            studentDetails,
-            activity1Evidence,
-            activity1Prediction,
-            activity2BrightSide,
-            activity2Hemisphere,
-            activity3CompareExplain,
-            activity3SolarEffect,
-            activity3Screenshot,
-            activity4Reflection,
-            missionTidalSummary,
-            missionPhasesSummary,
-            missionEclipseSummary,
-            missionHabitabilitySummary,
-            missionFinalRecommendation,
-            missionFinalJustification,
-            missionReportSubmitted,
-          }),
           teacherFeedback,
           updatedAt: new Date().toISOString()
         };
@@ -379,6 +497,7 @@ export default function App() {
     setMissionReportSubmitted(false);
     setRubricScore(emptyRubricScore());
     setTeacherFeedback('');
+    clearLocalDraft();
   };
 
   const handleDeleteMyProgress = async () => {

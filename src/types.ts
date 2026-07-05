@@ -58,7 +58,6 @@ export interface SubmissionData {
   missionFinalJustification: string;
   missionReportSubmitted: boolean;
   rubricScore: RubricScore;
-  progressSnapshot?: ProgressSnapshot;
   teacherFeedback?: string;
   updatedAt: string;
 }
