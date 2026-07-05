@@ -2,6 +2,7 @@ import React from 'react';
 import { StudentDetails, RubricScore } from '../types';
 import { Award, Compass, CheckCircle2, Globe, BookOpen, PenTool, Clipboard, Printer, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { EclipseElement } from './EclipseSandbox';
+import { getRubricTotal } from '../lib/grading';
 
 interface ConclusionProps {
   details: StudentDetails;
@@ -47,23 +48,13 @@ export default function Conclusion({
   missionReportSubmitted,
 }: ConclusionProps) {
   // Map values to points
-  const getPoints = (val: 'Excellent' | 'Good' | 'Needs Improvement' | null) => {
-    if (val === 'Excellent') return 4;
-    if (val === 'Good') return 3;
-    if (val === 'Needs Improvement') return 1;
-    return 0;
-  };
-
   const isComplete = Boolean(
     activity1Prediction && activity1Prediction.trim().length > 0 &&
     activity2BrightSide && activity2BrightSide.trim().length > 0 &&
     activity2Hemisphere && activity2Hemisphere.trim().length > 0
   );
 
-  const totalPoints =
-    getPoints(score.participation) +
-    getPoints(score.evidence) +
-    getPoints(score.understanding);
+  const totalPoints = getRubricTotal(score);
 
   const handlePrint = () => {
     window.print();
@@ -104,7 +95,7 @@ export default function Conclusion({
             Congratulations, Planetary Scientist!
           </h3>
           <p className="text-slate-700 text-sm md:text-base max-w-2xl mx-auto mt-2 leading-relaxed">
-            You have completed the Exo-Luna investigation and submitted your feasibility report.
+            You have completed the Exo-Luna investigation and submitted your feasibility report. Your final score combines automatic question checks with teacher review of participation and oral production.
           </p>
         </div>
       </div>

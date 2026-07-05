@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { 
   Users, Award, ClipboardList, CheckCircle2, ChevronRight, MessageSquare, 
   Search, Lock, Unlock, Eye, Sparkles, AlertCircle, RefreshCw, Download, FileText, ArrowLeft, Send,
-  QrCode, Copy, Check, Plus, Trash2, School, BookOpen
+  QrCode, Copy, Check, Plus, Trash2, School, BookOpen, Activity
 } from 'lucide-react';
 import { SubmissionData, RubricScore, ClassData } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot } from '../lib/firebase';
+import { buildProgressSnapshot, calculateAutomaticRubric, getRubricTotal as calculateRubricTotal } from '../lib/grading';
 
 interface TeacherDashboardProps {
   submissions: SubmissionData[];
@@ -133,10 +134,7 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
   };
 
   const getRubricTotal = (score: RubricScore | undefined | null) => {
-    if (!score) return 0;
-    return getPoints(score.participation) + 
-           getPoints(score.evidence) + 
-           getPoints(score.understanding);
+    return calculateRubricTotal(score);
   };
 
   const handleViewStudent = (student: SubmissionData) => {
@@ -169,7 +167,7 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
       participation: null,
       evidence: null,
       understanding: null,
-      reflection: null
+      oralProduction: null
     };
     const updatedRubric = {
       ...currentRubric,
@@ -198,6 +196,9 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
     const name = s.studentDetails?.studentName || '';
     return name.toLowerCase().includes(searchQuery.toLowerCase());
   });
+
+  const selectedStudentProgress = selectedStudent ? buildProgressSnapshot(selectedStudent) : null;
+  const selectedStudentAutoRubric = selectedStudent ? calculateAutomaticRubric(selectedStudent) : null;
 
   // KPI calculations for currently selected class
   const classTotalStudents = activeClassSubmissions.length;
@@ -503,7 +504,7 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
               </div>
               <div>
                 <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Puntuación Promedio de Rúbrica</span>
-                <span className="text-2xl font-extrabold text-slate-800">{classAverageScore} <span className="text-xs text-slate-400 font-normal">/ 12.0</span></span>
+                <span className="text-2xl font-extrabold text-slate-800">{classAverageScore} <span className="text-xs text-slate-400 font-normal">/ 16.0</span></span>
               </div>
             </div>
             {/* KPI 3 */}
@@ -543,6 +544,7 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                     {filteredSubmissions.map((sub) => {
                       const isSelected = selectedStudent?.id === sub.id;
                       const totalScore = getRubricTotal(sub.rubricScore);
+                        const progress = buildProgressSnapshot(sub);
                       return (
                         <button
                           key={sub.id}
@@ -559,6 +561,16 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                               <span>ID: {sub.id.substring(0, 12)}...</span>
                             </div>
                             <span className="text-[9px] text-slate-400 font-mono mt-1 block">Actualizado: {sub.updatedAt ? new Date(sub.updatedAt).toLocaleTimeString() : 'N/A'}</span>
+                            <div className="mt-2 space-y-1">
+                              <div className="flex items-center justify-between text-[9px] uppercase tracking-wider font-bold text-slate-400">
+                                <span>Live Progress</span>
+                                <span>{progress.percent}%</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-cyan-500" style={{ width: `${progress.percent}%` }} />
+                              </div>
+                              <p className="text-[9px] text-slate-500 font-medium">{progress.stageLabel}</p>
+                            </div>
                           </div>
 
                           <div className="text-right flex-shrink-0 flex flex-col items-end">
@@ -572,7 +584,7 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                               </span>
                             )}
                             <span className="text-xs font-bold text-indigo-700 mt-1.5 block">
-                              Score: {totalScore} / 12
+                              Score: {totalScore} / 16
                             </span>
                           </div>
                         </button>
@@ -611,7 +623,23 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                     </div>
                     <div className="text-right">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Accumulated Score</span>
-                      <span className="text-xl font-extrabold text-indigo-600 font-sans">{getRubricTotal(selectedStudent.rubricScore)} / 12</span>
+                      <span className="text-xl font-extrabold text-indigo-600 font-sans">{getRubricTotal(selectedStudent.rubricScore)} / 16</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Progress</span>
+                      <span className="text-2xl font-extrabold text-slate-900">{selectedStudentProgress?.percent ?? 0}%</span>
+                      <p className="text-[11px] text-slate-500 mt-1">{selectedStudentProgress?.stageLabel || 'Getting started'}</p>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Automatic Half</span>
+                      <p className="text-xs text-slate-600 mt-1">Evidence and question accuracy are scored from the saved work in real time.</p>
+                    </div>
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                      <span className="block text-[10px] uppercase tracking-wider font-bold text-slate-400">Manual Half</span>
+                      <p className="text-xs text-slate-600 mt-1">Participation and oral production stay editable by the teacher.</p>
                     </div>
                   </div>
 
@@ -619,41 +647,55 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                   <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-4">
                     <div className="border-b border-slate-200 pb-2">
                       <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1">
-                        <Award className="w-4 h-4 text-indigo-600" /> Complete Evaluation Rubric (Rubric Override)
+                        <Award className="w-4 h-4 text-indigo-600" /> Evaluation Rubric
                       </h4>
-                      <p className="text-[10px] text-slate-500 mt-0.5">Evaluate the dossier and lunar evidence. Any change immediately syncs in real time.</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Automatic question scores update from the student work. Only participation and oral production are edited manually here.</p>
                     </div>
                     
                     <div className="space-y-4 text-xs">
                       {[
                         {
                           id: 'evidence' as const,
-                          name: '1. Game 1: Tidal Locking Simulation',
-                          description: 'Configuring the moon\'s orbit and rotation to achieve stable synchronous locking.',
+                          name: '1. Automatic: Evidence Collection',
+                          description: 'Computed from the saved simulator work, screenshots, and final report.',
+                          editable: false,
                           options: [
-                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'Unable to achieve synchronous tidal locking, or orbital parameters remained unstable.' },
-                            { rating: 'Good' as const, points: '3 pts', text: 'Completed the simulator and achieved temporary synchrony, but with minor orbital decay or drift.' },
-                            { rating: 'Excellent' as const, points: '4 pts', text: 'Successfully completed the simulator, adjusted gravity, orbital velocity, and achieved stable, 1:1 synchronous tidal locking.' }
+                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'Few evidence checkpoints are complete, so the automatic evidence score is low.' },
+                            { rating: 'Good' as const, points: '3 pts', text: 'Several evidence checkpoints are complete, but one or two artifacts are missing.' },
+                            { rating: 'Excellent' as const, points: '4 pts', text: 'Most evidence checkpoints are complete, including the simulator, screenshot, and final report.' }
                           ]
                         },
                         {
                           id: 'understanding' as const,
-                          name: '2. Questionnaire 1: Tidal Locking & Gravity Logbook',
-                          description: 'Understanding of gravitational coupling, tidal bulges, and synchronous rotation.',
+                          name: '2. Automatic: Question Accuracy',
+                          description: 'Computed from the written answers across the logbooks and mission report.',
+                          editable: false,
                           options: [
-                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'Answers are incomplete or demonstrate significant misconceptions about tidal coupling.' },
-                            { rating: 'Good' as const, points: '3 pts', text: 'Answers are complete with general understanding, but contain minor physical misconceptions.' },
-                            { rating: 'Excellent' as const, points: '4 pts', text: 'Answers to the tidal locking logbook are complete, demonstrate precise physics knowledge, and explain rotation coupling accurately.' }
+                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'The question prompts are mostly incomplete, so the automatic understanding score is low.' },
+                            { rating: 'Good' as const, points: '3 pts', text: 'Some question prompts are complete with understandable but uneven explanations.' },
+                            { rating: 'Excellent' as const, points: '4 pts', text: 'Most question prompts are complete with clear scientific explanations.' }
                           ]
                         },
                         {
                           id: 'participation' as const,
-                          name: '3. Questionnaire 2: Moon Phases Logbook',
-                          description: 'Understanding of sunlight illumination angle and hemispheric perspective shifts.',
+                          name: '3. Teacher Review: Participation',
+                          description: 'Scored by the teacher based on engagement, collaboration, and class contribution.',
+                          editable: true,
                           options: [
-                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'Answers are incomplete, incorrect, or show limited understanding of phase angles.' },
-                            { rating: 'Good' as const, points: '3 pts', text: 'Answers are complete with general understanding of phases, though some explanation lines are brief.' },
-                            { rating: 'Excellent' as const, points: '4 pts', text: 'Answers to the moon phases logbook are complete, accurate, and perfectly explain sunlight illumination angles and perspective inversion.' }
+                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'The student showed limited participation and needed frequent prompting.' },
+                            { rating: 'Good' as const, points: '3 pts', text: 'The student participated appropriately, though engagement was uneven or needed prompting.' },
+                            { rating: 'Excellent' as const, points: '4 pts', text: 'The student participated actively and contributed consistently during the lesson.' }
+                          ]
+                        },
+                        {
+                          id: 'oralProduction' as const,
+                          name: '4. Teacher Review: Oral Production',
+                          description: 'Scored by the teacher based on oral explanation and scientific vocabulary.',
+                          editable: true,
+                          options: [
+                            { rating: 'Needs Improvement' as const, points: '1 pt', text: 'The oral explanation was brief, unclear, or lacked scientific vocabulary.' },
+                            { rating: 'Good' as const, points: '3 pts', text: 'The student explained ideas with some clarity, but needed support with vocabulary or detail.' },
+                            { rating: 'Excellent' as const, points: '4 pts', text: 'The student explained ideas clearly and used accurate scientific language.' }
                           ]
                         }
                       ].map((criterion) => (
@@ -669,35 +711,67 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                               </span>
                             </div>
                           </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
-                            {criterion.options.map((opt) => {
-                              const isSelected = selectedStudent.rubricScore?.[criterion.id] === opt.rating;
-                              return (
-                                <button
-                                  key={opt.rating}
-                                  type="button"
-                                  onClick={() => handleTeacherGradeRubric(criterion.id, opt.rating)}
-                                  className={`p-3 text-left rounded-lg border text-[11px] transition-all flex flex-col justify-between h-full focus:outline-none ${
-                                    isSelected
-                                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-md font-bold'
-                                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70 hover:border-slate-300'
-                                  }`}
-                                >
-                                  <div className="space-y-1">
-                                    <span className={`font-extrabold text-[9px] uppercase tracking-wider block ${
-                                      isSelected ? 'text-indigo-200' : 'text-indigo-600'
-                                    }`}>
-                                      {opt.rating} ({opt.points})
-                                    </span>
-                                    <p className={`leading-snug ${isSelected ? 'text-white' : 'text-slate-600'}`}>
-                                      {opt.text}
-                                    </p>
+
+                          {criterion.editable ? (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                              {criterion.options.map((opt) => {
+                                const isSelected = selectedStudent.rubricScore?.[criterion.id] === opt.rating;
+                                return (
+                                  <button
+                                    key={opt.rating}
+                                    type="button"
+                                    onClick={() => handleTeacherGradeRubric(criterion.id, opt.rating)}
+                                    className={`p-3 text-left rounded-lg border text-[11px] transition-all flex flex-col justify-between h-full focus:outline-none ${
+                                      isSelected
+                                        ? 'bg-indigo-600 border-indigo-600 text-white shadow-md font-bold'
+                                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100/70 hover:border-slate-300'
+                                    }`}
+                                  >
+                                    <div className="space-y-1">
+                                      <span className={`font-extrabold text-[9px] uppercase tracking-wider block ${
+                                        isSelected ? 'text-indigo-200' : 'text-indigo-600'
+                                      }`}>
+                                        {opt.rating} ({opt.points})
+                                      </span>
+                                      <p className={`leading-snug ${isSelected ? 'text-white' : 'text-slate-600'}`}>
+                                        {opt.text}
+                                      </p>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                              {criterion.options.map((opt) => {
+                                const autoScore = criterion.id === 'evidence'
+                                  ? selectedStudentAutoRubric?.evidence
+                                  : selectedStudentAutoRubric?.understanding;
+                                const isSelected = autoScore === opt.rating;
+                                return (
+                                  <div
+                                    key={opt.rating}
+                                    className={`p-3 text-left rounded-lg border text-[11px] flex flex-col justify-between h-full ${
+                                      isSelected
+                                        ? 'bg-emerald-50 border-emerald-400 text-emerald-950 shadow-sm font-bold'
+                                        : 'bg-slate-50 border-slate-200 text-slate-700'
+                                    }`}
+                                  >
+                                    <div className="space-y-1">
+                                      <span className={`font-extrabold text-[9px] uppercase tracking-wider block ${
+                                        isSelected ? 'text-emerald-700' : 'text-slate-500'
+                                      }`}>
+                                        {opt.rating} ({opt.points})
+                                      </span>
+                                      <p className={isSelected ? 'text-emerald-950' : 'text-slate-600'}>
+                                        {opt.text}
+                                      </p>
+                                    </div>
                                   </div>
-                                </button>
-                              );
-                            })}
-                          </div>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -706,6 +780,16 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
                   {/* Student Answers Sections */}
                   <div className="space-y-5">
                     <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-1">Activity Portfolios</h4>
+
+                    <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 text-xs text-slate-700">
+                      <div className="flex items-center gap-2 text-indigo-800 font-bold uppercase tracking-wider mb-2">
+                        <Activity className="w-4 h-4" /> Live Student Progress
+                      </div>
+                      <p><strong>Current stage:</strong> {selectedStudentProgress?.stageLabel || 'Getting started'}</p>
+                      <p><strong>Next step:</strong> {selectedStudentProgress?.nextStep || 'Waiting for new work.'}</p>
+                      <p><strong>Automatic evidence score:</strong> {selectedStudentAutoRubric?.evidence || 'Pending'}</p>
+                      <p><strong>Automatic question score:</strong> {selectedStudentAutoRubric?.understanding || 'Pending'}</p>
+                    </div>
 
                     {/* Act 1 */}
                     <div className="space-y-1">

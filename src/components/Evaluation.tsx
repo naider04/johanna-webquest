@@ -1,6 +1,7 @@
 import React from 'react';
 import { RubricScore } from '../types';
-import { Award, CheckCircle, Trophy, BarChart3 } from 'lucide-react';
+import { Award, CheckCircle, Trophy } from 'lucide-react';
+import { getRubricTotal } from '../lib/grading';
 
 interface EvaluationProps {
   score: RubricScore;
@@ -18,27 +19,35 @@ export default function Evaluation({ score, onScoreChange }: EvaluationProps) {
   }[] = [
     {
       id: 'evidence',
-      name: 'Game 1: Tidal Locking Simulation',
-      description: 'Configuring the moon\'s orbit and rotation to achieve stable synchronous locking.',
-      excellentText: 'Successfully completed the simulator, adjusted gravity, orbital velocity, and achieved stable, 1:1 synchronous tidal locking.',
-      goodText: 'Completed the simulator and achieved temporary synchrony, but with minor orbital decay or drift.',
-      needsImprovementText: 'Unable to achieve synchronous tidal locking, or orbital parameters remained unstable.',
+      name: 'Automatic: Evidence Collection',
+      description: 'Computed from the saved simulator work, screenshots, and final report.',
+      excellentText: 'Most evidence checkpoints are complete, including the simulator, screenshot, and final report.',
+      goodText: 'Several evidence checkpoints are complete, but one or two artifacts are missing.',
+      needsImprovementText: 'Few evidence checkpoints are complete, so the automatic evidence score is low.',
     },
     {
       id: 'understanding',
-      name: 'Questionnaire 1: Tidal Locking & Gravity Logbook',
-      description: 'Understanding of gravitational coupling, tidal bulges, and synchronous rotation.',
-      excellentText: 'Answers to the tidal locking logbook are complete, demonstrate precise physics knowledge, and explain rotation coupling accurately.',
-      goodText: 'Answers are complete with general understanding, but contain minor physical misconceptions.',
-      needsImprovementText: 'Answers are incomplete or demonstrate significant misconceptions about tidal coupling.',
+      name: 'Automatic: Question Accuracy',
+      description: 'Computed from the written answers across the logbooks and mission report.',
+      excellentText: 'Most question prompts are complete with clear scientific explanations.',
+      goodText: 'Some question prompts are complete with understandable but uneven explanations.',
+      needsImprovementText: 'The question prompts are mostly incomplete, so the automatic understanding score is low.',
     },
     {
       id: 'participation',
-      name: 'Questionnaire 2: Moon Phases Logbook',
-      description: 'Understanding of sunlight illumination angle and hemispheric perspective shifts.',
-      excellentText: 'Answers to the moon phases logbook are complete, accurate, and perfectly explain sunlight illumination angles and perspective inversion.',
-      goodText: 'Answers are complete with general understanding of phases, though some explanation lines are brief.',
-      needsImprovementText: 'Answers are incomplete, incorrect, or show limited understanding of phase angles.',
+      name: 'Teacher Review: Participation',
+      description: 'Scored by the teacher based on engagement, collaboration, and class contribution.',
+      excellentText: 'The student participated actively and contributed consistently during the lesson.',
+      goodText: 'The student participated appropriately, though engagement was uneven or needed prompting.',
+      needsImprovementText: 'The student showed limited participation and needed frequent prompting.',
+    },
+    {
+      id: 'oralProduction',
+      name: 'Teacher Review: Oral Production',
+      description: 'Scored by the teacher based on oral explanation and scientific vocabulary.',
+      excellentText: 'The student explained ideas clearly and used accurate scientific language.',
+      goodText: 'The student explained ideas with some clarity, but needed support with vocabulary or detail.',
+      needsImprovementText: 'The oral explanation was brief, unclear, or lacked scientific vocabulary.',
     }
   ];
 
@@ -50,18 +59,16 @@ export default function Evaluation({ score, onScoreChange }: EvaluationProps) {
     return 0;
   };
 
-  const totalPoints =
-    getPoints(score?.participation) +
-    getPoints(score?.evidence) +
-    getPoints(score?.understanding);
+  const totalPoints = getRubricTotal(score);
 
-  const maxPoints = 12;
+  const maxPoints = 16;
   const gradePercentage = Math.round((totalPoints / maxPoints) * 100);
 
   const isAllSelected =
     score?.participation !== null && score?.participation !== undefined &&
     score?.evidence !== null && score?.evidence !== undefined &&
-    score?.understanding !== null && score?.understanding !== undefined;
+    score?.understanding !== null && score?.understanding !== undefined &&
+    score?.oralProduction !== null && score?.oralProduction !== undefined;
 
   return (
     <div className="max-w-4xl mx-auto py-8 px-4">
@@ -72,7 +79,7 @@ export default function Evaluation({ score, onScoreChange }: EvaluationProps) {
           <Award className="w-7 h-7 text-blue-600" /> Evaluation Rubric
         </h2>
         <p className="text-slate-500 text-sm mt-1">
-          Review the grading guidelines. Your teacher will evaluate your work and grade this rubric.
+          Half of the score is computed automatically from the submitted questions and evidence. The other half is scored by the teacher for participation and oral production.
         </p>
       </div>
 

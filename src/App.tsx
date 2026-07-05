@@ -13,6 +13,7 @@ import TeacherDashboard from './components/TeacherDashboard';
 import { StudentDetails, WebQuestPage, RubricScore, SubmissionData } from './types';
 import { EclipseElement } from './components/EclipseSandbox';
 import { db, doc, setDoc, getDoc, getDocs, collection, onSnapshot, deleteDoc } from './lib/firebase';
+import { buildProgressSnapshot, calculateAutomaticRubric, emptyRubricScore, normalizeRubricScore } from './lib/grading';
 import { AlertCircle, MessageSquare, Award, Sparkles, X } from 'lucide-react';
 
 export default function App() {
@@ -59,7 +60,7 @@ export default function App() {
     participation: null,
     evidence: null,
     understanding: null,
-    reflection: null,
+    oralProduction: null,
   });
 
   // Track if initial load is completed to prevent blank-data overwrites
@@ -102,7 +103,7 @@ export default function App() {
           setMissionFinalRecommendation(data.missionFinalRecommendation || '');
           setMissionFinalJustification(data.missionFinalJustification || '');
           setMissionReportSubmitted(data.missionReportSubmitted || false);
-          setRubricScore(data.rubricScore || { participation: null, evidence: null, understanding: null, reflection: null });
+          setRubricScore(normalizeRubricScore(data.rubricScore));
           setTeacherFeedback(data.teacherFeedback || '');
           if (data.sandboxElementsJson) {
             try {
@@ -149,8 +150,9 @@ export default function App() {
         }
 
         // Live sync rubric changes from teacher dashboard
-        if (JSON.stringify(data.rubricScore) !== JSON.stringify(rubricScore)) {
-          setRubricScore(data.rubricScore);
+        const normalizedRubric = normalizeRubricScore(data.rubricScore);
+        if (JSON.stringify(normalizedRubric) !== JSON.stringify(rubricScore)) {
+          setRubricScore(normalizedRubric);
         }
       }
     });
@@ -200,7 +202,44 @@ export default function App() {
           missionFinalRecommendation,
           missionFinalJustification,
           missionReportSubmitted,
-          rubricScore,
+          rubricScore: {
+            ...rubricScore,
+            ...calculateAutomaticRubric({
+              activity1Evidence,
+              activity1Prediction,
+              activity2BrightSide,
+              activity2Hemisphere,
+              activity3CompareExplain,
+              activity3SolarEffect,
+              activity3Screenshot,
+              activity4Reflection,
+              missionTidalSummary,
+              missionPhasesSummary,
+              missionEclipseSummary,
+              missionHabitabilitySummary,
+              missionFinalRecommendation,
+              missionFinalJustification,
+              missionReportSubmitted,
+            }),
+          },
+          progressSnapshot: buildProgressSnapshot({
+            studentDetails,
+            activity1Evidence,
+            activity1Prediction,
+            activity2BrightSide,
+            activity2Hemisphere,
+            activity3CompareExplain,
+            activity3SolarEffect,
+            activity3Screenshot,
+            activity4Reflection,
+            missionTidalSummary,
+            missionPhasesSummary,
+            missionEclipseSummary,
+            missionHabitabilitySummary,
+            missionFinalRecommendation,
+            missionFinalJustification,
+            missionReportSubmitted,
+          }),
           teacherFeedback,
           updatedAt: new Date().toISOString()
         };
@@ -293,7 +332,7 @@ export default function App() {
         setMissionFinalRecommendation(data.missionFinalRecommendation || '');
         setMissionFinalJustification(data.missionFinalJustification || '');
         setMissionReportSubmitted(data.missionReportSubmitted || false);
-        setRubricScore(data.rubricScore || { participation: null, evidence: null, understanding: null, reflection: null });
+        setRubricScore(normalizeRubricScore(data.rubricScore));
         setTeacherFeedback(data.teacherFeedback || '');
         if (data.sandboxElementsJson) {
           try {
@@ -338,7 +377,7 @@ export default function App() {
     setMissionFinalRecommendation('');
     setMissionFinalJustification('');
     setMissionReportSubmitted(false);
-    setRubricScore({ participation: null, evidence: null, understanding: null, reflection: null });
+    setRubricScore(emptyRubricScore());
     setTeacherFeedback('');
   };
 

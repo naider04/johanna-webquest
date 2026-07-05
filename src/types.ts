@@ -26,7 +26,15 @@ export interface RubricScore {
   participation: 'Excellent' | 'Good' | 'Needs Improvement' | null;
   evidence: 'Excellent' | 'Good' | 'Needs Improvement' | null;
   understanding: 'Excellent' | 'Good' | 'Needs Improvement' | null;
-  reflection: 'Excellent' | 'Good' | 'Needs Improvement' | null;
+  oralProduction: 'Excellent' | 'Good' | 'Needs Improvement' | null;
+}
+
+export interface ProgressSnapshot {
+  completedSteps: number;
+  totalSteps: number;
+  percent: number;
+  stageLabel: string;
+  nextStep: string;
 }
 
 export interface SubmissionData {
@@ -50,6 +58,7 @@ export interface SubmissionData {
   missionFinalJustification: string;
   missionReportSubmitted: boolean;
   rubricScore: RubricScore;
+  progressSnapshot?: ProgressSnapshot;
   teacherFeedback?: string;
   updatedAt: string;
 }
