@@ -113,14 +113,14 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
       
     const randomNum = Math.floor(100 + Math.random() * 900);
     const code = `${cleanPrefix || 'CLASS'}-${randomNum}`;
+    const newClass: ClassData = {
+      classCode: code,
+      subject: classSubject.trim(),
+      teacherName: teacherName.trim(),
+      createdAt: new Date().toISOString()
+    };
 
     try {
-      const newClass: ClassData = {
-        classCode: code,
-        subject: classSubject.trim(),
-        teacherName: teacherName.trim(),
-        createdAt: new Date().toISOString()
-      };
       await setDoc(doc(db, 'classes', code), newClass);
       clearPendingClass(code);
       setClassSubject('');
@@ -137,7 +137,8 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
       setClassSubject('');
       setSelectedClass(newClass);
       setSelectedStudent(null);
-      alert('La clase quedó guardada localmente y se sincronizará cuando la conexión/Firestore vuelva a responder.');
+      const errMsg = err instanceof Error ? err.message : String(err);
+      alert(`La clase quedó guardada localmente y se sincronizará cuando la conexión/Firestore vuelva a responder.\n\nDetalle técnico: ${errMsg}`);
     }
   };
 
