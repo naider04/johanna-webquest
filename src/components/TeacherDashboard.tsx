@@ -108,6 +108,7 @@ export default function TeacherDashboard({
 
   const [copiedCodeClass, setCopiedCodeClass] = useState<string | null>(null);
   const [copiedLinkClass, setCopiedLinkClass] = useState<string | null>(null);
+  const [showQrClass, setShowQrClass] = useState<string | null>(null);
 
   // Fetch classes from Firestore in real-time
   React.useEffect(() => {
@@ -255,6 +256,19 @@ export default function TeacherDashboard({
     return calculateRubricTotal(score);
   };
 
+  // Combined total: automatic scores + manual scores
+  const getCombinedTotal = (student: SubmissionData) => {
+    const autoRubric = calculateAutomaticRubric(student);
+    const manualScore =
+      getPoints(student.rubricScore?.participation) +
+      getPoints(student.rubricScore?.oralProduction);
+    return (
+      getPoints(autoRubric.evidence) +
+      getPoints(autoRubric.understanding) +
+      manualScore
+    );
+  };
+
   const handleViewStudent = (student: SubmissionData) => {
     setSelectedStudent(student);
     setFeedbackText(student.teacherFeedback || "");
@@ -344,10 +358,8 @@ export default function TeacherDashboard({
   const classAverageScore =
     gradedClassSubs.length > 0
       ? (
-          gradedClassSubs.reduce(
-            (acc, s) => acc + getRubricTotal(s.rubricScore),
-            0,
-          ) / gradedClassSubs.length
+          gradedClassSubs.reduce((acc, s) => acc + getCombinedTotal(s), 0) /
+          gradedClassSubs.length
         ).toFixed(1)
       : "0.0";
   const classCompletedReportsCount = activeClassSubmissions.filter(
@@ -631,48 +643,42 @@ export default function TeacherDashboard({
               </div>
             </div>
 
-            {/* Action panel: Print QR of Direct Access */}
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Action panel: Show QR inline */}
+            <div className="flex flex-col items-end gap-2 w-full sm:w-auto">
               <button
-                onClick={() => {
-                  const printWindow = window.open("", "_blank");
-                  if (printWindow) {
-                    const joinUrl = `${window.location.origin}/?classCode=${selectedClass.classCode}`;
-                    printWindow.document.write(`
-                      <html>
-                        <head>
-                          <title>Código QR Clase: ${selectedClass.classCode}</title>
-                          <style>
-                            body { font-family: sans-serif; text-align: center; padding: 50px; background-color: white; color: black; }
-                            .container { max-width: 500px; margin: 0 auto; border: 2px solid #ccc; padding: 40px; border-radius: 15px; }
-                            h1 { font-size: 28px; margin-bottom: 5px; }
-                            h2 { font-size: 18px; color: #4f46e5; margin-bottom: 25px; }
-                            img { width: 300px; height: 300px; margin: 20px 0; }
-                            p { font-size: 14px; color: #555; }
-                            .code { font-family: monospace; font-size: 32px; font-weight: bold; background-color: #f3f4f6; padding: 10px 20px; border-radius: 8px; display: inline-block; margin-top: 15px; letter-spacing: 2px; }
-                          </style>
-                        </head>
-                        <body>
-                          <div class="container">
-                            <h1>UNEMI - Exo-Lunar WebQuest</h1>
-                            <h2>Docente: ${selectedClass.teacherName} | Asignatura: ${selectedClass.subject}</h2>
-                            <p>Escanea este código QR con tu celular para unirte directamente:</p>
-                            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(joinUrl)}" />
-                            <div style="margin-top: 20px;">Código de Clase Manual:</div>
-                            <div class="code">${selectedClass.classCode}</div>
-                          </div>
-                          <script>window.onload = function() { window.print(); }</script>
-                        </body>
-                      </html>
-                    `);
-                    printWindow.document.close();
-                  }
-                }}
+                onClick={() =>
+                  setShowQrClass(
+                    showQrClass === selectedClass.classCode
+                      ? null
+                      : selectedClass.classCode,
+                  )
+                }
                 className="w-full sm:w-auto px-4 py-2 bg-slate-950 hover:bg-slate-800 text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1.5 shadow-sm transition-colors focus:outline-none"
               >
                 <QrCode className="w-4 h-4 text-indigo-400" />
-                Imprimir QR de Acceso Estudiante
+                {showQrClass === selectedClass.classCode
+                  ? "Hide QR"
+                  : "Show QR"}
               </button>
+              {showQrClass === selectedClass.classCode &&
+                (() => {
+                  const joinUrl = `${window.location.origin}/?classCode=${selectedClass.classCode}`;
+                  return (
+                    <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-lg flex flex-col items-center gap-2 animate-fadeIn">
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}`}
+                        alt="QR Code"
+                        className="w-40 h-40 rounded"
+                      />
+                      <span className="font-mono font-bold text-indigo-700 text-sm tracking-widest">
+                        {selectedClass.classCode}
+                      </span>
+                      <span className="text-[10px] text-slate-400 text-center max-w-[160px] break-all">
+                        {joinUrl}
+                      </span>
+                    </div>
+                  );
+                })()}
             </div>
           </div>
 
@@ -760,7 +766,7 @@ export default function TeacherDashboard({
                   <div className="space-y-2 max-h-[480px] overflow-y-auto pr-1">
                     {filteredSubmissions.map((sub) => {
                       const isSelected = selectedStudent?.id === sub.id;
-                      const totalScore = getRubricTotal(sub.rubricScore);
+                      const totalScore = getCombinedTotal(sub);
                       const progress = buildProgressSnapshot(sub);
                       return (
                         <button
@@ -865,7 +871,7 @@ export default function TeacherDashboard({
                       </p>
                     </div>
                     <span className="text-lg font-extrabold text-indigo-600">
-                      {getRubricTotal(selectedStudent.rubricScore)} / 16
+                      {getCombinedTotal(selectedStudent)} / 16
                     </span>
                   </div>
 
