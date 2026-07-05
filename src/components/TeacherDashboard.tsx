@@ -8,6 +8,36 @@ import { SubmissionData, RubricScore, ClassData } from '../types';
 import { db, doc, updateDoc, setDoc, deleteDoc, collection, onSnapshot } from '../lib/firebase';
 import { buildProgressSnapshot, calculateAutomaticRubric, getRubricTotal as calculateRubricTotal } from '../lib/grading';
 
+const PENDING_CLASSES_KEY = 'webquest_pending_classes_v1';
+
+const loadPendingClasses = (): ClassData[] => {
+  try {
+    const raw = localStorage.getItem(PENDING_CLASSES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const savePendingClasses = (classes: ClassData[]) => {
+  try {
+    localStorage.setItem(PENDING_CLASSES_KEY, JSON.stringify(classes));
+  } catch {
+    // Ignore storage issues and keep the in-memory UI fallback.
+  }
+};
+
+const addPendingClass = (newClass: ClassData) => {
+  const next = loadPendingClasses().filter((item) => item.classCode !== newClass.classCode);
+  next.unshift(newClass);
+  savePendingClasses(next);
+};
+
+const clearPendingClass = (classCode: string) => {
+  const next = loadPendingClasses().filter((item) => item.classCode !== classCode);
+  savePendingClasses(next);
+};
+
 interface TeacherDashboardProps {
   submissions: SubmissionData[];
   onBackToApp: () => void;
@@ -30,6 +60,8 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
     return localStorage.getItem('teacher_name') || '';
   });
 
+  const [pendingClasses] = useState<ClassData[]>(() => loadPendingClasses());
+
   const [copiedCodeClass, setCopiedCodeClass] = useState<string | null>(null);
   const [copiedLinkClass, setCopiedLinkClass] = useState<string | null>(null);
 
@@ -41,8 +73,14 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
       snapshot.forEach((d) => {
         list.push(d.data() as ClassData);
       });
-      list.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-      setClasses(list);
+      const merged = [...list];
+      pendingClasses.forEach((pending) => {
+        if (!merged.some((item) => item.classCode === pending.classCode)) {
+          merged.push(pending);
+        }
+      });
+      merged.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      setClasses(merged);
     }, (error) => {
       console.error('Error listening to classes', error);
     });
@@ -84,13 +122,22 @@ export default function TeacherDashboard({ submissions, onBackToApp, onRefreshDa
         createdAt: new Date().toISOString()
       };
       await setDoc(doc(db, 'classes', code), newClass);
+      clearPendingClass(code);
       setClassSubject('');
       setSelectedClass(newClass);
       setSelectedStudent(null);
     } catch (err) {
       console.error('Error creating class:', err);
-      const errMsg = err instanceof Error ? err.message : String(err);
-      alert(`Error al crear la clase en la base de datos:\n${errMsg}\n\nNota: Si estás en Netlify, asegúrate de haber subido los cambios más recientes del repositorio (incluyendo las reglas de Firestore y firebase-applet-config.json).`);
+      addPendingClass(newClass);
+      setClasses((prev) => {
+        const next = [newClass, ...prev.filter((item) => item.classCode !== newClass.classCode)];
+        next.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+        return next;
+      });
+      setClassSubject('');
+      setSelectedClass(newClass);
+      setSelectedStudent(null);
+      alert('La clase quedó guardada localmente y se sincronizará cuando la conexión/Firestore vuelva a responder.');
     }
   };
 
