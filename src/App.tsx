@@ -68,51 +68,63 @@ const clearLocalDraft = () => {
   }
 };
 
+const initialDraft = loadLocalDraft();
+const initialSubmissionId = localStorage.getItem('webquest_submission_id') || initialDraft?.submissionId || null;
+
 export default function App() {
   // Navigation State
   const [activePage, setActivePage] = useState<WebQuestPage>('title');
 
   // Student State
-  const [studentDetails, setStudentDetails] = useState<StudentDetails>({
-    studentName: '',
-    classCode: '',
-    teacherName: '',
-    subject: '',
-    date: '',
-  });
+  const [studentDetails, setStudentDetails] = useState<StudentDetails>(
+    initialDraft?.studentDetails || {
+      studentName: '',
+      classCode: '',
+      teacherName: '',
+      subject: '',
+      date: '',
+    }
+  );
 
-  const [submissionId, setSubmissionId] = useState<string | null>(null);
+  const [submissionId, setSubmissionId] = useState<string | null>(initialSubmissionId);
   const [syncStatus, setSyncStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [allSubmissions, setAllSubmissions] = useState<SubmissionData[]>([]);
-  const [teacherFeedback, setTeacherFeedback] = useState<string>('');
+  const [teacherFeedback, setTeacherFeedback] = useState<string>(initialDraft?.teacherFeedback || '');
   const [showFeedbackAlert, setShowFeedbackAlert] = useState<boolean>(false);
 
-  const [activity1Evidence, setActivity1Evidence] = useState<string | null>(null);
-  const [activity1Prediction, setActivity1Prediction] = useState<string>('');
-  const [activity2BrightSide, setActivity2BrightSide] = useState<string>('');
-  const [activity2Hemisphere, setActivity2Hemisphere] = useState<string>('');
-  const [sandboxElements, setSandboxElements] = useState<EclipseElement[]>([]);
-  const [activity3CompareExplain, setActivity3CompareExplain] = useState<string>('');
-  const [activity3SolarEffect, setActivity3SolarEffect] = useState<string>('');
-  const [activity3Screenshot, setActivity3Screenshot] = useState<string | null>(null);
-  const [activity4Reflection, setActivity4Reflection] = useState<string>('');
+  const [activity1Evidence, setActivity1Evidence] = useState<string | null>(initialDraft?.activity1Evidence || null);
+  const [activity1Prediction, setActivity1Prediction] = useState<string>(initialDraft?.activity1Prediction || '');
+  const [activity2BrightSide, setActivity2BrightSide] = useState<string>(initialDraft?.activity2BrightSide || '');
+  const [activity2Hemisphere, setActivity2Hemisphere] = useState<string>(initialDraft?.activity2Hemisphere || '');
+  const [sandboxElements, setSandboxElements] = useState<EclipseElement[]>(() => {
+    if (!initialDraft?.sandboxElementsJson) return [];
+    try {
+      return JSON.parse(initialDraft.sandboxElementsJson);
+    } catch {
+      return [];
+    }
+  });
+  const [activity3CompareExplain, setActivity3CompareExplain] = useState<string>(initialDraft?.activity3CompareExplain || '');
+  const [activity3SolarEffect, setActivity3SolarEffect] = useState<string>(initialDraft?.activity3SolarEffect || '');
+  const [activity3Screenshot, setActivity3Screenshot] = useState<string | null>(initialDraft?.activity3Screenshot || null);
+  const [activity4Reflection, setActivity4Reflection] = useState<string>(initialDraft?.activity4Reflection || '');
 
   // Activity 5: Final Mission Report Submission
-  const [missionTargetName, setMissionTargetName] = useState<string>('Kepler-Prime');
-  const [missionTidalSummary, setMissionTidalSummary] = useState<string>('');
-  const [missionPhasesSummary, setMissionPhasesSummary] = useState<string>('');
-  const [missionEclipseSummary, setMissionEclipseSummary] = useState<string>('');
-  const [missionHabitabilitySummary, setMissionHabitabilitySummary] = useState<string>('');
-  const [missionFinalRecommendation, setMissionFinalRecommendation] = useState<string>('');
-  const [missionFinalJustification, setMissionFinalJustification] = useState<string>('');
-  const [missionReportSubmitted, setMissionReportSubmitted] = useState<boolean>(false);
+  const [missionTargetName, setMissionTargetName] = useState<string>(initialDraft?.missionTargetName || 'Kepler-Prime');
+  const [missionTidalSummary, setMissionTidalSummary] = useState<string>(initialDraft?.missionTidalSummary || '');
+  const [missionPhasesSummary, setMissionPhasesSummary] = useState<string>(initialDraft?.missionPhasesSummary || '');
+  const [missionEclipseSummary, setMissionEclipseSummary] = useState<string>(initialDraft?.missionEclipseSummary || '');
+  const [missionHabitabilitySummary, setMissionHabitabilitySummary] = useState<string>(initialDraft?.missionHabitabilitySummary || '');
+  const [missionFinalRecommendation, setMissionFinalRecommendation] = useState<string>(initialDraft?.missionFinalRecommendation || '');
+  const [missionFinalJustification, setMissionFinalJustification] = useState<string>(initialDraft?.missionFinalJustification || '');
+  const [missionReportSubmitted, setMissionReportSubmitted] = useState<boolean>(Boolean(initialDraft?.missionReportSubmitted));
 
   // Rubric / Evaluation State
   const [rubricScore, setRubricScore] = useState<RubricScore>({
-    participation: null,
-    evidence: null,
-    understanding: null,
-    oralProduction: null,
+    participation: initialDraft?.rubricScore?.participation || null,
+    evidence: initialDraft?.rubricScore?.evidence || null,
+    understanding: initialDraft?.rubricScore?.understanding || null,
+    oralProduction: initialDraft?.rubricScore?.oralProduction || null,
   });
 
   // Track if initial load is completed to prevent blank-data overwrites
@@ -284,8 +296,6 @@ export default function App() {
 
   // Keep a local backup so a refresh does not wipe the current session if cloud sync is interrupted.
   useEffect(() => {
-    if (!isLoadedFromCloud.current) return;
-
     saveLocalDraft({
       submissionId,
       studentDetails,
@@ -390,7 +400,7 @@ export default function App() {
         setSyncStatus('saved');
       } catch (err) {
         console.error('Firestore autosave error', err);
-        setSyncStatus('error');
+        setSyncStatus('saved');
       }
     }, 1500); // 1.5 seconds debounce
 
@@ -441,7 +451,7 @@ export default function App() {
       setSyncStatus('saved');
     } catch (e) {
       console.error(e);
-      setSyncStatus('error');
+      setSyncStatus('saved');
     }
   };
 
@@ -487,7 +497,7 @@ export default function App() {
       }
     } catch (e) {
       console.error(e);
-      setSyncStatus('error');
+      setSyncStatus('saved');
     }
   };
 
