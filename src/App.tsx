@@ -18,7 +18,32 @@ import { AlertCircle, MessageSquare, Award, Sparkles, X } from 'lucide-react';
 
 const LOCAL_DRAFT_KEY = 'webquest_submission_draft_v1';
 
-const loadLocalDraft = () => {
+type PersistedDraft = {
+  submissionId: string | null;
+  studentDetails: StudentDetails;
+  activity1Evidence: string | null;
+  activity1Prediction: string;
+  activity2BrightSide: string;
+  activity2Hemisphere: string;
+  sandboxElementsJson: string;
+  activity3CompareExplain: string;
+  activity3SolarEffect: string;
+  activity3Screenshot: string | null;
+  activity4Reflection: string;
+  missionTargetName: string;
+  missionTidalSummary: string;
+  missionPhasesSummary: string;
+  missionEclipseSummary: string;
+  missionHabitabilitySummary: string;
+  missionFinalRecommendation: string;
+  missionFinalJustification: string;
+  missionReportSubmitted: boolean;
+  rubricScore: RubricScore;
+  teacherFeedback: string;
+  updatedAt: string;
+};
+
+const loadLocalDraft = (): PersistedDraft | null => {
   try {
     const raw = localStorage.getItem(LOCAL_DRAFT_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -27,7 +52,7 @@ const loadLocalDraft = () => {
   }
 };
 
-const saveLocalDraft = (draft: unknown) => {
+const saveLocalDraft = (draft: PersistedDraft) => {
   try {
     localStorage.setItem(LOCAL_DRAFT_KEY, JSON.stringify(draft));
   } catch {
@@ -93,12 +118,71 @@ export default function App() {
   // Track if initial load is completed to prevent blank-data overwrites
   const isLoadedFromCloud = useRef(false);
 
+  const hydrateSubmissionState = (data: Partial<SubmissionData>) => {
+    setStudentDetails(data.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' });
+    setActivity1Evidence(data.activity1Evidence || null);
+    setActivity1Prediction(data.activity1Prediction || '');
+    setActivity2BrightSide(data.activity2BrightSide || '');
+    setActivity2Hemisphere(data.activity2Hemisphere || '');
+    setActivity3CompareExplain(data.activity3CompareExplain || '');
+    setActivity3SolarEffect(data.activity3SolarEffect || '');
+    setActivity3Screenshot(data.activity3Screenshot || null);
+    setActivity4Reflection(data.activity4Reflection || '');
+    setMissionTargetName(data.missionTargetName || 'Kepler-Prime');
+    setMissionTidalSummary(data.missionTidalSummary || '');
+    setMissionPhasesSummary(data.missionPhasesSummary || '');
+    setMissionEclipseSummary(data.missionEclipseSummary || '');
+    setMissionHabitabilitySummary(data.missionHabitabilitySummary || '');
+    setMissionFinalRecommendation(data.missionFinalRecommendation || '');
+    setMissionFinalJustification(data.missionFinalJustification || '');
+    setMissionReportSubmitted(data.missionReportSubmitted || false);
+    setRubricScore(normalizeRubricScore(data.rubricScore));
+    setTeacherFeedback(data.teacherFeedback || '');
+
+    if (data.sandboxElementsJson) {
+      try {
+        setSandboxElements(JSON.parse(data.sandboxElementsJson));
+      } catch (e) {
+        console.error('Error parsing sandbox items', e);
+      }
+    }
+  };
+
+  const parseTimestamp = (value?: string | null) => {
+    const time = value ? Date.parse(value) : NaN;
+    return Number.isFinite(time) ? time : 0;
+  };
+
+  const shouldPreferLocalDraft = (localDraft: PersistedDraft | null, cloudUpdatedAt?: string) => {
+    if (!localDraft) return false;
+    if (!cloudUpdatedAt) return true;
+    return parseTimestamp(localDraft.updatedAt) >= parseTimestamp(cloudUpdatedAt);
+  };
+
   // Load existing session from localStorage on startup
   useEffect(() => {
     const savedId = localStorage.getItem('webquest_submission_id');
     const urlParams = new URLSearchParams(window.location.search);
     const classCodeParam = urlParams.get('classCode');
     const localDraft = loadLocalDraft();
+
+    if (!savedId && localDraft) {
+      setSubmissionId(localDraft.submissionId);
+      if (localDraft.submissionId) {
+        localStorage.setItem('webquest_submission_id', localDraft.submissionId);
+      }
+      hydrateSubmissionState(localDraft);
+      isLoadedFromCloud.current = true;
+
+      if (classCodeParam) {
+        setStudentDetails(prev => ({
+          ...prev,
+          classCode: classCodeParam.toUpperCase()
+        }));
+      }
+
+      return;
+    }
 
     if (savedId) {
       setSubmissionId(savedId);
@@ -107,39 +191,20 @@ export default function App() {
       getDoc(docRef).then((docSnap) => {
         if (docSnap.exists()) {
           const data = docSnap.data() as SubmissionData;
-          const details = data.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' };
-          
-          // If classCode in URL is different, prioritize URL
-          if (classCodeParam) {
-            details.classCode = classCodeParam.toUpperCase();
-          }
-          
-          setStudentDetails(details);
-          setActivity1Evidence(data.activity1Evidence || null);
-          setActivity1Prediction(data.activity1Prediction || '');
-          setActivity2BrightSide(data.activity2BrightSide || '');
-          setActivity2Hemisphere(data.activity2Hemisphere || '');
-          setActivity3CompareExplain(data.activity3CompareExplain || '');
-          setActivity3SolarEffect(data.activity3SolarEffect || '');
-          setActivity3Screenshot(data.activity3Screenshot || null);
-          setActivity4Reflection(data.activity4Reflection || '');
-          setMissionTargetName(data.missionTargetName || 'Kepler-Prime');
-          setMissionTidalSummary(data.missionTidalSummary || '');
-          setMissionPhasesSummary(data.missionPhasesSummary || '');
-          setMissionEclipseSummary(data.missionEclipseSummary || '');
-          setMissionHabitabilitySummary(data.missionHabitabilitySummary || '');
-          setMissionFinalRecommendation(data.missionFinalRecommendation || '');
-          setMissionFinalJustification(data.missionFinalJustification || '');
-          setMissionReportSubmitted(data.missionReportSubmitted || false);
-          setRubricScore(normalizeRubricScore(data.rubricScore));
-          setTeacherFeedback(data.teacherFeedback || '');
-          clearLocalDraft();
-          if (data.sandboxElementsJson) {
-            try {
-              setSandboxElements(JSON.parse(data.sandboxElementsJson));
-            } catch (e) {
-              console.error('Error parsing sandbox items', e);
-            }
+          const preferLocal = shouldPreferLocalDraft(localDraft, data.updatedAt);
+
+          if (preferLocal && localDraft) {
+            hydrateSubmissionState(localDraft);
+          } else {
+            const mergedData = {
+              ...data,
+              studentDetails: {
+                ...(data.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' }),
+                ...(classCodeParam ? { classCode: classCodeParam.toUpperCase() } : {}),
+              },
+            };
+            hydrateSubmissionState(mergedData);
+            clearLocalDraft();
           }
         } else {
           // If document not found, but we had savedId, allow pre-filling classCode
@@ -147,31 +212,10 @@ export default function App() {
             setStudentDetails(prev => ({ ...prev, classCode: classCodeParam.toUpperCase() }));
           }
           if (localDraft) {
-            setStudentDetails(localDraft.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' });
-            setActivity1Evidence(localDraft.activity1Evidence || null);
-            setActivity1Prediction(localDraft.activity1Prediction || '');
-            setActivity2BrightSide(localDraft.activity2BrightSide || '');
-            setActivity2Hemisphere(localDraft.activity2Hemisphere || '');
-            setActivity3CompareExplain(localDraft.activity3CompareExplain || '');
-            setActivity3SolarEffect(localDraft.activity3SolarEffect || '');
-            setActivity3Screenshot(localDraft.activity3Screenshot || null);
-            setActivity4Reflection(localDraft.activity4Reflection || '');
-            setMissionTargetName(localDraft.missionTargetName || 'Kepler-Prime');
-            setMissionTidalSummary(localDraft.missionTidalSummary || '');
-            setMissionPhasesSummary(localDraft.missionPhasesSummary || '');
-            setMissionEclipseSummary(localDraft.missionEclipseSummary || '');
-            setMissionHabitabilitySummary(localDraft.missionHabitabilitySummary || '');
-            setMissionFinalRecommendation(localDraft.missionFinalRecommendation || '');
-            setMissionFinalJustification(localDraft.missionFinalJustification || '');
-            setMissionReportSubmitted(Boolean(localDraft.missionReportSubmitted));
-            setRubricScore(normalizeRubricScore(localDraft.rubricScore));
-            setTeacherFeedback(localDraft.teacherFeedback || '');
-            if (localDraft.sandboxElementsJson) {
-              try {
-                setSandboxElements(JSON.parse(localDraft.sandboxElementsJson));
-              } catch (e) {
-                console.error('Error parsing local draft sandbox items', e);
-              }
+            hydrateSubmissionState(localDraft);
+            if (localDraft.submissionId) {
+              setSubmissionId(localDraft.submissionId);
+              localStorage.setItem('webquest_submission_id', localDraft.submissionId);
             }
           }
         }
@@ -179,31 +223,10 @@ export default function App() {
       }).catch((err) => {
         console.error('Error fetching student document', err);
         if (localDraft) {
-          setStudentDetails(localDraft.studentDetails || { studentName: '', classCode: '', teacherName: '', subject: '', date: '' });
-          setActivity1Evidence(localDraft.activity1Evidence || null);
-          setActivity1Prediction(localDraft.activity1Prediction || '');
-          setActivity2BrightSide(localDraft.activity2BrightSide || '');
-          setActivity2Hemisphere(localDraft.activity2Hemisphere || '');
-          setActivity3CompareExplain(localDraft.activity3CompareExplain || '');
-          setActivity3SolarEffect(localDraft.activity3SolarEffect || '');
-          setActivity3Screenshot(localDraft.activity3Screenshot || null);
-          setActivity4Reflection(localDraft.activity4Reflection || '');
-          setMissionTargetName(localDraft.missionTargetName || 'Kepler-Prime');
-          setMissionTidalSummary(localDraft.missionTidalSummary || '');
-          setMissionPhasesSummary(localDraft.missionPhasesSummary || '');
-          setMissionEclipseSummary(localDraft.missionEclipseSummary || '');
-          setMissionHabitabilitySummary(localDraft.missionHabitabilitySummary || '');
-          setMissionFinalRecommendation(localDraft.missionFinalRecommendation || '');
-          setMissionFinalJustification(localDraft.missionFinalJustification || '');
-          setMissionReportSubmitted(Boolean(localDraft.missionReportSubmitted));
-          setRubricScore(normalizeRubricScore(localDraft.rubricScore));
-          setTeacherFeedback(localDraft.teacherFeedback || '');
-          if (localDraft.sandboxElementsJson) {
-            try {
-              setSandboxElements(JSON.parse(localDraft.sandboxElementsJson));
-            } catch (e) {
-              console.error('Error parsing local draft sandbox items', e);
-            }
+          hydrateSubmissionState(localDraft);
+          if (localDraft.submissionId) {
+            setSubmissionId(localDraft.submissionId);
+            localStorage.setItem('webquest_submission_id', localDraft.submissionId);
           }
         }
         isLoadedFromCloud.current = true;
@@ -285,6 +308,7 @@ export default function App() {
       missionReportSubmitted,
       rubricScore,
       teacherFeedback,
+      updatedAt: new Date().toISOString(),
     });
   }, [
     submissionId,
