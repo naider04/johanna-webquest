@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "deploy:firestore-rules": "npx --yes firebase-tools deploy --only firestore:rules --project helical-theater-8tgzl"
+    "deploy:firestore-rules": "npx --yes firebase-tools deploy --only firestore:rules --project johanna-webquest"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
