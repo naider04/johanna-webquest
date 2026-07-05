@@ -284,7 +284,7 @@ export default function App() {
 
   // Keep a local backup so a refresh does not wipe the current session if cloud sync is interrupted.
   useEffect(() => {
-    if (!submissionId || !isLoadedFromCloud.current) return;
+    if (!isLoadedFromCloud.current) return;
 
     saveLocalDraft({
       submissionId,
