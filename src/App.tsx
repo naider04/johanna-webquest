@@ -127,6 +127,8 @@ export default function App() {
     oralProduction: initialDraft?.rubricScore?.oralProduction || null,
   });
 
+  const hasInitialSessionState = useRef(Boolean(initialDraft || !initialSubmissionId));
+
   // Track if initial load is completed to prevent blank-data overwrites
   const isLoadedFromCloud = useRef(false);
 
@@ -296,6 +298,8 @@ export default function App() {
 
   // Keep a local backup so a refresh does not wipe the current session if cloud sync is interrupted.
   useEffect(() => {
+    if (!hasInitialSessionState.current) return;
+
     saveLocalDraft({
       submissionId,
       studentDetails,
@@ -438,6 +442,7 @@ export default function App() {
       currentId = `student-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
       localStorage.setItem('webquest_submission_id', currentId);
       setSubmissionId(currentId);
+      hasInitialSessionState.current = true;
     }
 
     try {
@@ -495,9 +500,11 @@ export default function App() {
         }
         setSyncStatus('saved');
       }
+      hasInitialSessionState.current = true;
     } catch (e) {
       console.error(e);
       setSyncStatus('saved');
+      hasInitialSessionState.current = true;
     }
   };
 
@@ -512,10 +519,12 @@ export default function App() {
       date: '',
     });
     // Reset other student states to defaults
+        hasInitialSessionState.current = true;
     setActivity1Evidence(null);
     setActivity1Prediction('');
     setActivity2BrightSide('');
     setActivity2Hemisphere('');
+      hasInitialSessionState.current = true;
     setSandboxElements([]);
     setActivity3CompareExplain('');
     setActivity3SolarEffect('');
@@ -532,6 +541,7 @@ export default function App() {
     setRubricScore(emptyRubricScore());
     setTeacherFeedback('');
     clearLocalDraft();
+    hasInitialSessionState.current = true;
   };
 
   const handleDeleteMyProgress = async () => {

@@ -123,8 +123,8 @@ export default function ClassroomSession({
               )}
               {syncStatus === 'error' && (
                 <>
-                  <CloudLightning className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
-                  <span className="text-rose-400">Sync Error</span>
+                  <Cloud className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Saved locally</span>
                 </>
               )}
               {syncStatus === 'idle' && (
